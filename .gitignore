@@ -1,0 +1,31 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+
+# Environment
+.env
+*.env
+
+# Node
+node_modules/
+dist/
+.vite/
+
+# Uploads & model cache
+/backend/uploads/
+/tmp/
+~/.cache/fastembed/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp

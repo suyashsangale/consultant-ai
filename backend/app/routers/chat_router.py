@@ -7,7 +7,7 @@ from sqlalchemy import select
 from app.llm import call_llm
 from app.database import get_db, AsyncSessionLocal
 from app.models import User, KnowledgeBase, Conversation, Message
-from app.schemas import ChatRequest, ChatResponse, ConversationOut
+from app.schemas import ChatRequest, ChatResponse, ChatSources, ConversationOut, MessageOut
 from app.auth import get_current_user
 from app.knowledge import build_system_prompt, deep_merge, detect_hat
 from app.embeddings import embed_sync
@@ -20,18 +20,30 @@ router   = APIRouter(prefix="/chat", tags=["chat"])
 
 def _parse_claude_response(raw: str) -> dict:
     text = raw.strip()
-    text = re.sub(r"^```json\s*", "", text)
-    text = re.sub(r"```\s*$", "", text).strip()
+
+    # Strip any markdown code fence variant (```json, ```JSON, ```json5, ``` etc.)
+    text = re.sub(r"^```[a-zA-Z0-9]*\s*", "", text)
+    text = re.sub(r"\s*```$", "", text).strip()
+
+    # Attempt 1: direct parse (fast path — works when JSON mode is active)
     try:
         return json.loads(text)
     except json.JSONDecodeError:
         pass
-    match = re.search(r"\{[\s\S]*\}", text)
-    if match:
-        try:
-            return json.loads(match.group())
-        except json.JSONDecodeError:
-            pass
+
+    # Attempt 2: scan for the first valid JSON object using the stdlib decoder.
+    # raw_decode(text, pos) parses starting at pos and stops at the matching brace,
+    # so it handles prose before/after the JSON block without manual brace counting.
+    decoder = json.JSONDecoder()
+    for i, ch in enumerate(text):
+        if ch == "{":
+            try:
+                obj, _ = decoder.raw_decode(text, i)
+                return obj
+            except json.JSONDecodeError:
+                continue
+
+    # Fallback: treat entire response as plain reply text
     return {
         "reply": raw,
         "knowledge_updates": {},
@@ -124,6 +136,7 @@ async def chat(
             system=system_prompt,
             messages=claude_messages,
             max_tokens=1500,
+            json_mode=True,
         )
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"LLM API error: {str(e)}")
@@ -169,12 +182,18 @@ async def chat(
 
     await db.commit()
 
+    sources = ChatSources(
+        kb_categories=[c for c in kb_record.data if kb_record.data.get(c)],
+        doc_chunks=len(doc_context),
+    )
+
     return ChatResponse(
         conversation_id=conversation.id,
         reply=reply_text,
         knowledge_updates=knowledge_updates,
         phase=new_phase,
         knowledge_gaps=gaps[:4],
+        sources=sources,
     )
 
 
@@ -212,5 +231,11 @@ async def get_conversation(
         .where(Message.conversation_id == conversation_id)
         .order_by(Message.order)
     )
-    conv.messages = msgs_result.scalars().all()
-    return conv
+    messages = msgs_result.scalars().all()
+    return ConversationOut(
+        id=conv.id,
+        title=conv.title,
+        created_at=conv.created_at,
+        updated_at=conv.updated_at,
+        messages=[MessageOut.model_validate(m) for m in messages],
+    )

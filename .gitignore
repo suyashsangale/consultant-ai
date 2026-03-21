@@ -8,8 +8,7 @@ build/
 .pytest_cache/
 
 # Environment
-.env
-*.env
+
 
 # Node
 node_modules/

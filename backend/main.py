@@ -7,7 +7,8 @@ from app.config import get_settings
 from app.database import create_tables
 from app.routers import (
     auth_router, business_router, chat_router,
-    document_router, billing_router, team_router, integration_router,
+    document_router, billing_router, team_router,
+    integration_router, trust_router,
 )
 
 settings = get_settings()
@@ -47,6 +48,7 @@ app.include_router(document_router)
 app.include_router(billing_router)
 app.include_router(team_router)
 app.include_router(integration_router)
+app.include_router(trust_router)
 
 
 @app.get("/health")

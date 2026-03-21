@@ -5,8 +5,10 @@ from app.routers.document_router    import router as document_router
 from app.routers.billing_router     import router as billing_router
 from app.routers.team_router        import router as team_router
 from app.routers.integration_router import router as integration_router
+from app.routers.trust_router       import router as trust_router
 
 __all__ = [
     "auth_router", "business_router", "chat_router",
-    "document_router", "billing_router", "team_router", "integration_router",
+    "document_router", "billing_router", "team_router",
+    "integration_router", "trust_router",
 ]

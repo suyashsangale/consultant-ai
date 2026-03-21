@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from "react";
+import ReactMarkdown from "react-markdown";
 import { api } from "../api";
+import SourcesBadge from "./SourcesBadge";
 
 // Web Speech API — supported in Chrome/Edge. Returns null in Firefox/Safari.
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition || null;
@@ -96,7 +98,7 @@ export default function ChatWindow({ conversationId, onConversationCreated, onFi
         onFirstMessage?.();
       }
 
-      setMessages(prev => [...prev, { role:"assistant", content: res.reply }]);
+      setMessages(prev => [...prev, { role:"assistant", content: res.reply, sources: res.sources }]);
       setGaps(res.knowledge_gaps || []);
       setPhase(res.phase || "discovery");
       if (res.knowledge_updates) onKbUpdate?.(res.knowledge_updates);
@@ -113,6 +115,23 @@ export default function ChatWindow({ conversationId, onConversationCreated, onFi
   }
 
   const initials = businessName?.[0]?.toUpperCase() || "B";
+
+  function safeContent(content) {
+    const t = (content || "").trim();
+    if (t.startsWith("{") || t.startsWith("```")) {
+      const candidates = [
+        t,
+        t.replace(/^```[a-zA-Z0-9]*\n?/, "").replace(/\n?```$/, "").trim(),
+      ];
+      for (const s of candidates) {
+        try {
+          const p = JSON.parse(s);
+          if (typeof p.reply === "string") return p.reply;
+        } catch {}
+      }
+    }
+    return content;
+  }
 
   return (
     <div style={{ display:"flex", flexDirection:"column", flex:1, minHeight:0 }}>
@@ -165,15 +184,33 @@ export default function ChatWindow({ conversationId, onConversationCreated, onFi
               color: m.role === "assistant" ? "white" : "#085041" }}>
               {m.role === "assistant" ? "B" : initials}
             </div>
-            <div style={{
-              maxWidth:"78%", padding:"10px 13px", fontSize:13, lineHeight:1.65,
-              whiteSpace:"pre-wrap", wordBreak:"break-word",
-              borderRadius: m.role === "assistant" ? "2px 12px 12px 12px" : "12px 2px 12px 12px",
-              background: m.role === "assistant" ? "white" : "#1a2744",
-              border: m.role === "assistant" ? "1px solid rgba(90,70,40,0.1)" : "none",
-              color: m.role === "assistant" ? "#1a1612" : "white",
-            }}>
-              {m.content}
+            <div style={{ maxWidth:"78%" }}>
+              <div style={{
+                padding:"10px 13px", fontSize:13, lineHeight:1.65,
+                wordBreak:"break-word",
+                whiteSpace: m.role === "assistant" ? "normal" : "pre-wrap",
+                borderRadius: m.role === "assistant" ? "2px 12px 12px 12px" : "12px 2px 12px 12px",
+                background: m.role === "assistant" ? "white" : "#1a2744",
+                border: m.role === "assistant" ? "1px solid rgba(90,70,40,0.1)" : "none",
+                color: m.role === "assistant" ? "#1a1612" : "white",
+              }}>
+                {m.role === "assistant"
+                  ? <ReactMarkdown components={{
+                      p:      ({node, ...p}) => <p style={{margin:"0 0 8px"}} {...p}/>,
+                      ul:     ({node, ...p}) => <ul style={{margin:"4px 0 8px",paddingLeft:18}} {...p}/>,
+                      ol:     ({node, ...p}) => <ol style={{margin:"4px 0 8px",paddingLeft:18}} {...p}/>,
+                      li:     ({node, ...p}) => <li style={{marginBottom:3}} {...p}/>,
+                      strong: ({node, ...p}) => <strong style={{fontWeight:700}} {...p}/>,
+                      h1:     ({node, ...p}) => <div style={{fontWeight:700,fontSize:15,margin:"8px 0 4px"}} {...p}/>,
+                      h2:     ({node, ...p}) => <div style={{fontWeight:700,fontSize:14,margin:"6px 0 4px"}} {...p}/>,
+                      h3:     ({node, ...p}) => <div style={{fontWeight:600,fontSize:13,margin:"4px 0 3px"}} {...p}/>,
+                      code:   ({node, inline, ...p}) => inline
+                        ? <code style={{background:"rgba(90,70,40,0.08)",borderRadius:3,padding:"1px 4px",fontSize:12}} {...p}/>
+                        : <pre style={{background:"rgba(90,70,40,0.06)",borderRadius:6,padding:"8px 10px",fontSize:12,overflowX:"auto",margin:"6px 0"}}><code {...p}/></pre>,
+                    }}>{safeContent(m.content)}</ReactMarkdown>
+                  : safeContent(m.content)}
+              </div>
+              {m.role === "assistant" && m.sources && <SourcesBadge sources={m.sources} />}
             </div>
           </div>
         ))}

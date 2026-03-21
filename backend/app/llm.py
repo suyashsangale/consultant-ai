@@ -24,6 +24,7 @@ def call_llm(
     messages: list[dict],
     max_tokens: int,
     use_doc_model: bool = False,
+    json_mode: bool = False,
 ) -> str:
     """
     Call the configured LLM provider and return the raw text response.
@@ -38,7 +39,7 @@ def call_llm(
     provider = settings.llm_provider.lower()
 
     if provider == "groq":
-        return _call_groq(system=system, messages=messages, max_tokens=max_tokens, use_doc_model=use_doc_model)
+        return _call_groq(system=system, messages=messages, max_tokens=max_tokens, use_doc_model=use_doc_model, json_mode=json_mode)
     else:
         return _call_anthropic(system=system, messages=messages, max_tokens=max_tokens, use_doc_model=use_doc_model)
 
@@ -72,6 +73,7 @@ def _call_groq(
     messages: list[dict],
     max_tokens: int,
     use_doc_model: bool,
+    json_mode: bool = False,
 ) -> str:
     from groq import Groq
 
@@ -83,10 +85,14 @@ def _call_groq(
         full_messages.append({"role": "system", "content": system})
     full_messages.extend(messages)
 
+    kwargs: dict = {
+        "model": model,
+        "max_tokens": max_tokens,
+        "messages": full_messages,
+    }
+    if json_mode:
+        kwargs["response_format"] = {"type": "json_object"}
+
     client = Groq(api_key=settings.groq_api_key)
-    response = client.chat.completions.create(
-        model=model,
-        max_tokens=max_tokens,
-        messages=full_messages,
-    )
+    response = client.chat.completions.create(**kwargs)
     return response.choices[0].message.content

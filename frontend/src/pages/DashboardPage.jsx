@@ -7,6 +7,8 @@ import Sidebar        from "../components/Sidebar";
 import ChatWindow     from "../components/ChatWindow";
 import KnowledgePanel from "../components/KnowledgePanel";
 import DocumentPanel  from "../components/DocumentPanel";
+import HealthSnapshot from "../components/HealthSnapshot";
+import BuddyTest      from "../components/BuddyTest";
 
 export default function DashboardPage() {
   const { user, logout }    = useAuth();
@@ -88,7 +90,7 @@ export default function DashboardPage() {
         </div>
 
         <div style={{ display:"flex", gap:4, background:"#f0ede8", borderRadius:8, padding:3 }}>
-          {[{ id:"kb", label:"Knowledge" }, { id:"docs", label:"Documents" }].map(tab => (
+          {[{ id:"kb", label:"Knowledge" }, { id:"docs", label:"Documents" }, { id:"health", label:"Health" }].map(tab => (
             <button key={tab.id} onClick={() => setRightPanel(tab.id)}
               style={{
                 fontSize:11, fontWeight:600, padding:"4px 12px",
@@ -148,10 +150,27 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* Right: Knowledge or Documents */}
+        {/* Right: Knowledge, Documents, or Health */}
         {rightPanel === "kb"
           ? <KnowledgePanel kb={kb} businessName={biz?.name} phase={phase} />
-          : <DocumentPanel  onKbUpdate={handleKbUpdate} />
+          : rightPanel === "docs"
+          ? <DocumentPanel onKbUpdate={handleKbUpdate} />
+          : (
+            <div style={{ width:280, minWidth:280, borderLeft:"1px solid rgba(90,70,40,0.12)",
+              background:"#f7f6f3", height:"100%", overflowY:"auto", display:"flex", flexDirection:"column" }}>
+              <div style={{ padding:"14px 20px 10px", borderBottom:"1px solid rgba(90,70,40,0.1)",
+                fontSize:11, fontWeight:700, color:"#aaa", letterSpacing:"0.08em", textTransform:"uppercase" }}>
+                Buddy Health
+              </div>
+              <HealthSnapshot />
+              <div style={{ borderTop:"1px solid rgba(90,70,40,0.08)", margin:"8px 0" }} />
+              <div style={{ padding:"10px 20px 6px", fontSize:11, fontWeight:700, color:"#aaa",
+                letterSpacing:"0.08em", textTransform:"uppercase" }}>
+                Buddy Test
+              </div>
+              <BuddyTest />
+            </div>
+          )
         }
       </div>
     </div>

@@ -108,9 +108,61 @@ class ChatRequest(BaseModel):
     message: str = Field(min_length=1, max_length=10000)
 
 
+class ChatSources(BaseModel):
+    kb_categories: list[str] = []   # KB categories that had data
+    doc_chunks: int = 0             # number of RAG chunks used
+
+
 class ChatResponse(BaseModel):
     conversation_id: uuid.UUID
     reply: str
     knowledge_updates: dict
     phase: str
     knowledge_gaps: list[str]
+    sources: ChatSources = ChatSources()
+
+
+# ── Trust / Health ─────────────────────────────────────────────────────────────
+
+class HealthSnapshotResponse(BaseModel):
+    kb_fill_pct: float              # 0-100, percentage of KB categories filled
+    filled_categories: list[str]
+    missing_categories: list[str]
+    phase: str
+    total_documents: int
+    total_chunks: int
+
+
+class TestQuestion(BaseModel):
+    id: int
+    question: str
+    category: str                   # which KB category this tests
+
+
+class TestGenerateResponse(BaseModel):
+    questions: list[TestQuestion]
+
+
+class TestAnswerItem(BaseModel):
+    question_id: int
+    answer: str
+
+
+class TestScoreRequest(BaseModel):
+    questions: list[TestQuestion]
+    answers: list[TestAnswerItem]
+
+
+class TestResultItem(BaseModel):
+    question_id: int
+    question: str
+    your_answer: str
+    buddy_answer: str
+    score: int                      # 1-5
+    feedback: str
+
+
+class TestScoreResponse(BaseModel):
+    results: list[TestResultItem]
+    overall_score: float            # average 1-5
+    summary: str
